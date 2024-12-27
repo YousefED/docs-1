@@ -9,6 +9,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+## Added
+
+- ⚗️(backend) add util to extract text from base64 yjs document
+
 ## [2.0.1] - 2025-01-17
 
 ## Fixed
