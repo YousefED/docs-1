@@ -60,6 +60,7 @@ def test_api_documents_list_format():
     assert results[0] == {
         "id": str(document.id),
         "content": document.content,
+        "abilities": document.get_abilities(user),
         "created_at": document.created_at.isoformat().replace("+00:00", "Z"),
         "creator": str(document.creator.id),
         "is_favorite": True,
@@ -78,7 +79,6 @@ def test_api_documents_list_authenticated_direct(django_assert_num_queries):
     than restricted.
     """
     user = factories.UserFactory()
-
     client = APIClient()
     client.force_login(user)
 
@@ -109,7 +109,7 @@ def test_api_documents_list_authenticated_direct(django_assert_num_queries):
 
     expected_ids = {str(document1.id), str(document2.id), str(child3_with_access.id)}
 
-    with django_assert_num_queries(3):
+    with django_assert_num_queries(7):
         response = client.get("/api/v1.0/documents/")
 
     assert response.status_code == 200
@@ -144,7 +144,7 @@ def test_api_documents_list_authenticated_via_team(
 
     expected_ids = {str(document.id) for document in documents_team1 + documents_team2}
 
-    with django_assert_num_queries(3):
+    with django_assert_num_queries(8):
         response = client.get("/api/v1.0/documents/")
 
     assert response.status_code == 200
@@ -173,7 +173,7 @@ def test_api_documents_list_authenticated_link_reach_restricted(
     other_document = factories.DocumentFactory(link_reach="public")
     models.LinkTrace.objects.create(document=other_document, user=user)
 
-    with django_assert_num_queries(3):
+    with django_assert_num_queries(4):
         response = client.get(
             "/api/v1.0/documents/",
         )
@@ -220,7 +220,7 @@ def test_api_documents_list_authenticated_link_reach_public_or_authenticated(
 
     expected_ids = {str(document1.id), str(document2.id), str(visible_child.id)}
 
-    with django_assert_num_queries(3):
+    with django_assert_num_queries(7):
         response = client.get(
             "/api/v1.0/documents/",
         )
@@ -314,7 +314,7 @@ def test_api_documents_list_favorites_no_extra_queries(django_assert_num_queries
     factories.DocumentFactory.create_batch(2, users=[user])
 
     url = "/api/v1.0/documents/"
-    with django_assert_num_queries(3):
+    with django_assert_num_queries(8):
         response = client.get(url)
 
     assert response.status_code == 200
@@ -327,7 +327,7 @@ def test_api_documents_list_favorites_no_extra_queries(django_assert_num_queries
     for document in special_documents:
         models.DocumentFavorite.objects.create(document=document, user=user)
 
-    with django_assert_num_queries(3):
+    with django_assert_num_queries(8):
         response = client.get(url)
 
     assert response.status_code == 200
