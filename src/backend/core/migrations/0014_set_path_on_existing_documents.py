@@ -4,6 +4,8 @@ from django.db import migrations, models
 
 from treebeard.numconv import NumConv
 
+ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+STEPLEN = 7
 
 def set_path_on_existing_documents(apps, schema_editor):
     """
@@ -19,14 +21,13 @@ def set_path_on_existing_documents(apps, schema_editor):
 
     # Iterate over all existing documents and make them root nodes
     documents = Document.objects.order_by("created_at").values_list("id", flat=True)
-    alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    numconv = NumConv(len(alphabet), alphabet)
+    numconv = NumConv(len(ALPHABET), ALPHABET)
 
     updates = []
     for i, pk in enumerate(documents):
         key = numconv.int2str(i)
         path = "{0}{1}".format(
-            alphabet[0] * (7 - len(key)),
+            ALPHABET[0] * (STEPLEN - len(key)),
             key
         )
         updates.append(Document(pk=pk, path=path, depth=1))
@@ -46,6 +47,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='document',
             name='path',
-            field=models.CharField(max_length=255, unique=True),
+            field=models.CharField(db_collation='C', max_length=252, unique=True),
         ),
     ]

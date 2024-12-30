@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
             model_name='document',
             name='path',
             # Allow null values pending the next datamigration to populate the field
-            field=models.CharField(max_length=255, null=True, unique=True),
+            field=models.CharField(db_collation='C', max_length=252, null=True, unique=True),
             preserve_default=False,
         ),
     ]

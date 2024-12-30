@@ -400,12 +400,15 @@ class Document(MP_Node, BaseModel):
     _content = None
 
     # Tree structure
-    steplen = 7  # nb siblings max: 78,364,164,096 / max depth: 255/7=36
-    node_order_by = None  # Manual ordering
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    steplen = 7  # nb siblings max: 3,521,614,606,208
+    node_order_by = []  # Manual ordering
+
+    path = models.CharField(max_length=7 * 36, unique=True, db_collation="C")
 
     class Meta:
         db_table = "impress_document"
-        ordering = ("title",)
+        ordering = ("path",)
         verbose_name = _("Document")
         verbose_name_plural = _("Documents")
 

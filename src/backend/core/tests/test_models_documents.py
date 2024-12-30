@@ -65,6 +65,22 @@ def test_models_documents_file_key():
     assert document.file_key == "9531a5f1-42b1-496c-b3f4-1c09ed139b3c/file"
 
 
+def test_models_documents_tree_alphabet():
+    """Test the creation of documents with treebeard methods."""
+    models.Document.load_bulk(
+        [
+            {
+                "data": {
+                    "title": f"document-{i}",
+                }
+            }
+            for i in range(len(models.Document.alphabet) * 2)
+        ]
+    )
+
+    assert models.Document.objects.count() == 124
+
+
 # get_abilities
 
 
