@@ -67,7 +67,6 @@ def test_models_documents_file_key():
     assert document.file_key == "9531a5f1-42b1-496c-b3f4-1c09ed139b3c/file"
 
 
-<<<<<<< HEAD
 def test_models_documents_tree_alphabet():
     """Test the creation of documents with treebeard methods."""
     models.Document.load_bulk(
@@ -82,7 +81,6 @@ def test_models_documents_tree_alphabet():
     )
 
     assert models.Document.objects.count() == 124
-=======
 
 
 @pytest.mark.parametrize("depth", range(5))
@@ -121,7 +119,6 @@ def test_models_documents_soft_delete(depth):
         assert parent.ancestors_deleted_at is None
 
     assert len(ancestors) + len(descendants) == depth
->>>>>>> e3034244 (fixup! ✨(backend) add soft delete to documents and refactor db queryset)
 
 
 # get_abilities
@@ -163,6 +160,7 @@ def test_models_documents_get_abilities_forbidden(
         "move": False,
         "link_configuration": False,
         "partial_update": False,
+        "restore": False,
         "retrieve": False,
         "update": False,
         "versions_destroy": False,
@@ -210,6 +208,7 @@ def test_models_documents_get_abilities_reader(
         "media_auth": True,
         "move": False,
         "partial_update": False,
+        "restore": False,
         "retrieve": True,
         "update": False,
         "versions_destroy": False,
@@ -257,6 +256,7 @@ def test_models_documents_get_abilities_editor(
         "media_auth": True,
         "move": False,
         "partial_update": True,
+        "restore": False,
         "retrieve": True,
         "update": True,
         "versions_destroy": False,
@@ -291,6 +291,7 @@ def test_models_documents_get_abilities_owner(django_assert_num_queries):
         "media_auth": True,
         "move": True,
         "partial_update": True,
+        "restore": True,
         "retrieve": True,
         "update": True,
         "versions_destroy": True,
@@ -325,6 +326,7 @@ def test_models_documents_get_abilities_administrator(django_assert_num_queries)
         "media_auth": True,
         "move": True,
         "partial_update": True,
+        "restore": False,
         "retrieve": True,
         "update": True,
         "versions_destroy": True,
@@ -358,6 +360,7 @@ def test_models_documents_get_abilities_editor_user(django_assert_num_queries):
         "media_auth": True,
         "move": False,
         "partial_update": True,
+        "restore": False,
         "retrieve": True,
         "update": True,
         "versions_destroy": False,
@@ -393,12 +396,8 @@ def test_models_documents_get_abilities_reader_user(django_assert_num_queries):
         "link_configuration": False,
         "media_auth": True,
         "move": False,
-<<<<<<< HEAD
-        "partial_update": False,
-=======
         "partial_update": access_from_link,
         "restore": False,
->>>>>>> e3034244 (fixup! ✨(backend) add soft delete to documents and refactor db queryset)
         "retrieve": True,
         "update": access_from_link,
         "versions_destroy": False,
@@ -438,6 +437,7 @@ def test_models_documents_get_abilities_preset_role(django_assert_num_queries):
         "media_auth": True,
         "move": False,
         "partial_update": False,
+        "restore": False,
         "retrieve": True,
         "update": False,
         "versions_destroy": False,

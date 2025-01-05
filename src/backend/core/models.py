@@ -672,6 +672,7 @@ class Document(MP_Node, BaseModel):
             "invite_owner": is_owner,
             "move": is_owner_or_admin and not self.ancestors_deleted_at,
             "partial_update": can_update,
+            "restore": is_owner,
             "retrieve": can_get,
             "media_auth": can_get,
             "update": can_update,
@@ -762,6 +763,26 @@ class Document(MP_Node, BaseModel):
         self.get_descendants().filter(ancestors_deleted_at__isnull=True).update(
             ancestors_deleted_at=self.ancestors_deleted_at
         )
+
+    def restore(self):
+        """Cancelling a soft delete with checks."""
+        if self.deleted_at is None:
+            raise exceptions.ValidationError(
+                {"deleted_at": _("This document is not deleted.")}
+            )
+
+        limit_datetime = timezone.now() - timedelta(days=settings.SOFT_DELETE_KEEP_DAYS)
+        if self.deleted_at < limit_datetime:
+            raise exceptions.ValidationError(
+                {
+                    "deleted_at": _(
+                        "This document was hard deleted and cannot be restored."
+                    )
+                }
+            )
+
+        self.deleted_at = None
+        self.save()
 
 
 class LinkTrace(BaseModel):
