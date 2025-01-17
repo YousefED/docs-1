@@ -485,6 +485,7 @@ class DocumentViewSet(
         )
 
     @drf.decorators.action(detail=True, methods=["post"])
+    @transaction.atomic
     def move(self, request, *args, **kwargs):
         """
         Move a document to another location within the document tree.
@@ -502,22 +503,41 @@ class DocumentViewSet(
 
         target_document_id = validated_data["target_document_id"]
         try:
-            target_document = models.Document.objects.get(id=target_document_id)
+            target_document = models.Document.objects.get(
+                id=target_document_id, ancestors_deleted_at__isnull=True
+            )
         except models.Document.DoesNotExist:
             return drf.response.Response(
                 {"target_document_id": "Target parent document does not exist."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check permission for the target parent document
-        if not target_document.get_abilities(user).get("move"):
-            message = "You do not have permission to move documents to this target."
+        position = validated_data["position"]
+        message = None
+
+        if position in [
+            enums.MoveNodePositionChoices.FIRST_CHILD,
+            enums.MoveNodePositionChoices.LAST_CHILD,
+        ]:
+            if not target_document.get_abilities(user).get("move"):
+                message = (
+                    "You do not have permission to move documents "
+                    "as a child to this target document."
+                )
+        elif not target_document.is_root():
+            if not target_document.get_parent().get_abilities(user).get("move"):
+                message = (
+                    "You do not have permission to move documents "
+                    "as a sibling of this target document."
+                )
+
+        if message:
             return drf.response.Response(
                 {"target_document_id": message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        document.move(target_document, pos=validated_data["position"])
+        document.move(target_document, pos=position)
 
         return drf.response.Response(
             {"message": "Document moved successfully."}, status=status.HTTP_200_OK

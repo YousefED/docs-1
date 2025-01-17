@@ -758,4 +758,3 @@ def test_api_documents_retrieve_numqueries_with_link_trace(django_assert_num_que
     assert response.status_code == 200
 
     assert response.json()["id"] == str(document.id)
-

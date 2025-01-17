@@ -597,13 +597,6 @@ class MoveDocumentSerializer(serializers.Serializer):
 
     target_document_id = serializers.UUIDField(required=True)
     position = serializers.ChoiceField(
-        choices=[
-            "first-child",
-            "last-child",
-            "first-sibling",
-            "last-sibling",
-            "left",
-            "right",
-        ],
-        default="last-child",
+        choices=enums.MoveNodePositionChoices.choices,
+        default=enums.MoveNodePositionChoices.LAST_CHILD,
     )
