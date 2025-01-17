@@ -2,6 +2,8 @@
 Test collaboration websocket access API endpoint for users in impress's core app.
 """
 
+from uuid import uuid4
+
 from django.test import override_settings
 
 import pytest
@@ -11,6 +13,21 @@ from core import factories, models
 from core.tests.conftest import TEAM, USER, VIA
 
 pytestmark = pytest.mark.django_db
+
+
+def test_api_documents_collaboration_auth_unkown_document():
+    """
+    Trying to connect to the collaboration server on a document ID that does not exist
+    should not have the side effect to create it (no regression test).
+    """
+    original_url = f"http://localhost/collaboration/ws/?room={uuid4()!s}"
+
+    response = APIClient().get(
+        "/api/v1.0/documents/collaboration-auth/", HTTP_X_ORIGINAL_URL=original_url
+    )
+
+    assert response.status_code == 403
+    assert models.Document.objects.exists() is False
 
 
 def test_api_documents_collaboration_auth_original_url_not_matching():
