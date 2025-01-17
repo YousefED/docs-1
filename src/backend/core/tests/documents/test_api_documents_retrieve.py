@@ -933,4 +933,3 @@ def test_api_documents_retrieve_permanently_deleted_related(role, depth):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Not found."}
-
