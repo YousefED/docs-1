@@ -88,6 +88,9 @@
       "Only invited people can access": "Nur eingeladene Personen haben Zugriff",
       "Open the document options": "Öffnen Sie die Dokumentoptionen",
       "Open the header menu": "Öffne das Kopfzeilen-Menü",
+      "Open the panel": "Panel öffnen",
+      "Open the version options": "Öffnen Sie die Versionsoptionen",
+      "Others": "Andere",
       "Ouch !": "Autsch!",
       "Owner": "Besitzer",
       "PDF": "PDF",
@@ -144,7 +147,20 @@
       "You are the sole owner of this group, make another member the group owner before you can change your own role or be removed from your document.": "Sie sind der einzige Besitzer dieser Gruppe. Machen Sie ein anderes Mitglied zum Gruppenbesitzer, bevor Sie Ihre eigene Rolle ändern oder aus Ihrem Dokument entfernen können.",
       "You cannot update the role or remove other owner.": "Sie können die Rolle nicht aktualisieren oder einen anderen Besitzer entfernen.",
       "Your current document will revert to this version.": "Ihr aktuelles Dokument wird auf diese Version zurückgesetzt.",
-      "Your {{format}} was downloaded succesfully": "Ihr {{format}} wurde erfolgreich heruntergeladen"
+      "Your role": "Ihre Rolle",
+      "Your role:": "Ihre Rolle:",
+      "Your {{format}} was downloaded succesfully": "Ihr {{format}} wurde erfolgreich heruntergeladen",
+      "Alert": "Hinweis",
+      "Add a colored alert box": "Fügen Sie einen farbigen Hinweiskasten hinzu",
+      "Quote": "Zitat",
+      "Add a quote block": "Fügen Sie einen Zitatblock hinzu",
+      "Divider": "Trennlinie",
+      "Add a horizontal line": "Fügen Sie eine horizontale Linie hinzu",
+      "Alert Type": "Hinweistyp",
+      "Warning": "Warnung",
+      "Error": "Fehler",
+      "Info": "Info",
+      "Success": "Erfolg"
     }
   },
   "en": { "translation": {} },
@@ -247,6 +263,9 @@
       "Only invited people can access": "Seules les personnes invitées peuvent accéder",
       "Open the document options": "Ouvrir les options du document",
       "Open the header menu": "Ouvrir le menu d'en-tête",
+      "Open the panel": "Ouvrir le panneau",
+      "Open the version options": "Ouvrir les options de version",
+      "Others": "Autres",
       "Ouch !": "Aïe !",
       "Owner": "Propriétaire",
       "PDF": "PDF",
@@ -321,7 +340,18 @@
       "accessibility-dinum-services": "<strong>DINUM</strong> s'engage à rendre accessibles ses services numériques, conformément à l'article 47 de la loi n° 2005-102 du 11 février 2005.",
       "accessibility-form-defenseurdesdroits": "Écrire un message au<1>Défenseur des droits</1>",
       "accessibility-not-audit": "<strong>docs.numerique.gouv.fr</strong> n'est pas en conformité avec le RGAA 4.1. Le site n'a <strong>pas encore été audité.</strong>",
-      "you have reported to the website manager a lack of accessibility that prevents you from accessing content or one of the services of the portal and you have not received a satisfactory response.": "vous avez signalé au responsable du site internet un défaut d'accessibilité qui vous empêche d'accéder à un contenu ou à un des services du portail et vous n'avez pas obtenu de réponse satisfaisante."
+      "you have reported to the website manager a lack of accessibility that prevents you from accessing content or one of the services of the portal and you have not received a satisfactory response.": "vous avez signalé au responsable du site internet un défaut d'accessibilité qui vous empêche d'accéder à un contenu ou à un des services du portail et vous n'avez pas obtenu de réponse satisfaisante.",
+      "Alert": "Encadré",
+      "Add a colored alert box": "Ajouter un encadré coloré",
+      "Quote": "Citation",
+      "Add a quote block": "Ajouter un bloc de citation",
+      "Divider": "Séparateur",
+      "Add a horizontal line": "Ajouter une ligne horizontale",
+      "Alert Type": "Type d'encadré",
+      "Warning": "Avertissement",
+      "Error": "Erreur",
+      "Info": "Information",
+      "Success": "Succès"
     }
   }
 }

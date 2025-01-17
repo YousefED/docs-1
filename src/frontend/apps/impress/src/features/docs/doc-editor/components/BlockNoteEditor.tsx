@@ -1,8 +1,19 @@
-import { Dictionary, locales } from '@blocknote/core';
+import {
+  Dictionary,
+  locales,
+  BlockNoteSchema,
+  defaultBlockSpecs,
+  insertOrUpdateBlock,
+  filterSuggestionItems,
+} from '@blocknote/core';
 import '@blocknote/core/fonts/inter.css';
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
-import { useCreateBlockNote } from '@blocknote/react';
+import {
+  SuggestionMenuController,
+  useCreateBlockNote,
+  getDefaultReactSlashMenuItems,
+} from '@blocknote/react';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +31,10 @@ import { useEditorStore } from '../stores';
 import { randomColor } from '../utils';
 
 import { BlockNoteToolbar } from './BlockNoteToolbar';
+
+import { Alert } from './Alert';
+import { QuoteBlock } from './QuoteBlock';
+import { DividerBlock } from './DividerBlock';
 
 const cssEditor = (readonly: boolean) => css`
   &,
@@ -124,6 +139,81 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
 
   const { uploadFile, errorAttachment } = useUploadFile(doc.id);
 
+  // Our schema with block specs, which contain the configs and implementations for blocks
+  // that we want our editor to use.
+  const schema = BlockNoteSchema.create({
+    blockSpecs: {
+      // Adds all default blocks.
+      ...defaultBlockSpecs,
+      // Adds the Alert block.
+      alert: Alert,
+      // Adds the Quote block
+      quote: QuoteBlock,
+      // Adds the Divider block
+      divider: DividerBlock,
+    },
+  });
+
+  // Slash menu item to insert an Alert block
+  const insertAlert = (editor: typeof schema.BlockNoteEditor) => ({
+    title: t('Alert'),
+    onItemClick: () => {
+      insertOrUpdateBlock(editor, {
+        type: 'alert',
+      });
+    },
+    aliases: [
+      'alert',
+      'notification',
+      'emphasize',
+      'warning',
+      'error',
+      'info',
+      'success',
+    ],
+    group: t('Others'),
+    icon: (
+      <span className="material-icons" style={{ fontSize: '18px' }}>
+        warning
+      </span>
+    ),
+    subtext: t('Add a colored alert box'),
+  });
+
+  const insertQuote = (editor: typeof schema.BlockNoteEditor) => ({
+    title: t('Quote'),
+    onItemClick: () => {
+      insertOrUpdateBlock(editor, {
+        type: 'quote',
+      });
+    },
+    aliases: ['quote', 'blockquote', 'citation'],
+    group: t('Others'),
+    icon: (
+      <span className="material-icons" style={{ fontSize: '18px' }}>
+        format_quote
+      </span>
+    ),
+    subtext: t('Add a quote block'),
+  });
+
+  const insertDivider = (editor: typeof schema.BlockNoteEditor) => ({
+    title: t('Divider'),
+    onItemClick: () => {
+      insertOrUpdateBlock(editor, {
+        type: 'divider',
+      });
+    },
+    aliases: ['divider', 'hr', 'horizontal rule', 'line', 'separator'],
+    group: t('Others'),
+    icon: (
+      <span className="material-icons" style={{ fontSize: '18px' }}>
+        remove
+      </span>
+    ),
+    subtext: t('Add a horizontal line'),
+  });
+
   const collabName = readOnly
     ? 'Reader'
     : userData?.full_name || userData?.email || t('Anonymous');
@@ -164,14 +254,15 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
         },
       },
       dictionary: locales[lang as keyof typeof locales] as Dictionary,
+      schema,
       uploadFile,
     },
     [collabName, lang, provider, uploadFile],
   );
-  useHeadings(editor);
+  useHeadings(editor as any);
 
   useEffect(() => {
-    setEditor(editor);
+    setEditor(editor as any);
 
     return () => {
       setEditor(undefined);
@@ -198,8 +289,24 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
         editor={editor}
         formattingToolbar={false}
         editable={!readOnly}
+        slashMenu={false}
         theme="light"
       >
+        <SuggestionMenuController
+          triggerCharacter={'/'}
+          getItems={async (query) =>
+            // Gets all default slash menu items and `insertAlert` item.
+            filterSuggestionItems(
+              [
+                ...getDefaultReactSlashMenuItems(editor),
+                insertAlert(editor),
+                insertQuote(editor),
+                insertDivider(editor),
+              ],
+              query,
+            )
+          }
+        />
         <BlockNoteToolbar />
       </BlockNoteView>
     </Box>
@@ -228,7 +335,7 @@ export const BlockNoteEditorVersion = ({
     },
     [initialContent],
   );
-  useHeadings(editor);
+  useHeadings(editor as any);
 
   useEffect(() => {
     setEditor(editor);
