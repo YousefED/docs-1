@@ -296,6 +296,7 @@ class Base(Configuration):
         "drf_spectacular",
         # Third party apps
         "corsheaders",
+        "django_filters",
         "dockerflow.django",
         "rest_framework",
         "parler",
@@ -351,8 +352,8 @@ class Base(Configuration):
         "REDOC_DIST": "SIDECAR",
     }
 
-    SOFT_DELETE_KEEP_DAYS = values.Value(
-        30, environ_name="SOFT_DELETE_KEEP_DAYS", environ_prefix=None
+    TRASHBIN_CUTOFF_DAYS = values.Value(
+        30, environ_name="TRASHBIN_CUTOFF_DAYS", environ_prefix=None
     )
 
     # Mail

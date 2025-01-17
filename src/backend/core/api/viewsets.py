@@ -4,7 +4,6 @@
 import logging
 import re
 import uuid
-from datetime import timedelta
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -17,7 +16,6 @@ from django.db import models as db
 from django.db import transaction
 from django.db.models.functions import Left, Length
 from django.http import Http404
-from django.utils import timezone
 
 import rest_framework as drf
 from botocore.exceptions import ClientError
@@ -325,20 +323,23 @@ class DocumentViewSet(
        Example: DELETE /documents/{id}/
 
     ### Additional Actions:
-    1. **Children**: List or create child documents.
+    1. **Trashbin**: List soft deleted documents for a document owner
+        Example: GET /documents/{id}/trashbin/
+
+    2. **Children**: List or create child documents.
         Example: GET, POST /documents/{id}/children/
 
-    2. **Versions List**: Retrieve version history of a document.
+    3. **Versions List**: Retrieve version history of a document.
         Example: GET /documents/{id}/versions/
 
-    3. **Version Detail**: Get or delete a specific document version.
+    4. **Version Detail**: Get or delete a specific document version.
         Example: GET, DELETE /documents/{id}/versions/{version_id}/
 
-    4. **Favorite**: Mark or unmark a document as favorite.
-        Example: POST, DELETE /documents/{id}/favorite/
-
-    5. **Attachment Upload**: Upload a file attachment for the document.
-        Example: POST /documents/{id}/attachment-upload/
+    5. **Favorite**: Get list of favorite documents for a user. Mark or unmark
+        a document as favorite.
+        Examples:
+        - GET /documents/favorite/
+        - POST, DELETE /documents/{id}/favorite/
 
     6. **Create for Owner**: Create a document via server-to-server on behalf of a user.
         Example: POST /documents/create-for-owner/
@@ -346,13 +347,16 @@ class DocumentViewSet(
     7. **Link Configuration**: Update document link configuration.
         Example: PUT /documents/{id}/link-configuration/
 
-    8. **Media Auth**: Authorize access to document media.
+    8. **Attachment Upload**: Upload a file attachment for the document.
+        Example: POST /documents/{id}/attachment-upload/
+
+    9. **Media Auth**: Authorize access to document media.
         Example: GET /documents/media-auth/
 
-    9. **Media Auth**: Authorize access to the collaboration server for a document.
+    10. **Collaboration Auth**: Authorize access to the collaboration server for a document.
         Example: GET /documents/collaboration-auth/
 
-    10. **AI Transform**: Apply a transformation action on a piece of text with AI.
+    11. **AI Transform**: Apply a transformation action on a piece of text with AI.
         Example: POST /documents/{id}/ai-transform/
         Expected data:
         - text (str): The input text.
@@ -360,7 +364,7 @@ class DocumentViewSet(
         Returns: JSON response with the processed text.
         Throttled by: AIDocumentRateThrottle, AIUserRateThrottle.
 
-    11. **AI Translate**: Translate a piece of text with AI.
+    12. **AI Translate**: Translate a piece of text with AI.
         Example: POST /documents/{id}/ai-translate/
         Expected data:
         - text (str): The input text.
@@ -379,8 +383,6 @@ class DocumentViewSet(
         - `is_creator_me=false`: Returns documents created by other users.
         - `is_favorite=true`: Returns documents marked as favorite by the current user
         - `is_favorite=false`: Returns documents not marked as favorite by the current user
-        - `is_deleted=true`: Returns documents that were soft deleted left than x days ago
-        - `is_deleted=false`: Returns documents that were not deleted
         - `title=hello`: Returns documents which title contains the "hello" string
 
         Example:
@@ -388,24 +390,21 @@ class DocumentViewSet(
         - GET /api/v1.0/documents/?is_creator_me=false&title=hello
 
     ### Annotations:
-    1. **nb_accesses**: Number of accesses related to the document or its ancestors.
-    2. **is_favorite**: Indicates whether the document is marked as favorite by the current user.
-    3. **user_roles**: Roles the current user has on the document or its ancestors.
-    4. **is_traced**: Indicates if the document has been accessed by the current user.
-    5. **ancestors_deleted_at**: Date when the document or one of its ancestors was soft deleted.
+    1. **is_favorite**: Indicates whether the document is marked as favorite by the current user.
+    2. **user_roles**: Roles the current user has on the document or its ancestors.
 
     ### Notes:
     - Only the highest ancestor in a document hierarchy is shown in list views.
     - Implements soft delete logic to retain document tree structures.
     """
 
-    filter_backends = [drf_filters.DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [drf_filters.DjangoFilterBackend]
     filterset_class = DocumentFilter
     metadata_class = DocumentMetadata
     ordering = ["-updated_at"]
-    ordering_fields = ["created_at", "is_favorite", "updated_at", "title"]
+    ordering_fields = ["created_at", "updated_at", "title"]
     permission_classes = [
-        permissions.AccessPermission,
+        permissions.DocumentAccessPermission,
     ]
     queryset = models.Document.objects.all()
     serializer_class = serializers.DocumentSerializer
@@ -419,19 +418,6 @@ class DocumentViewSet(
             if self.action == "list"
             else self.serializer_class
         )
-
-    def annotate_nb_accesses(self, queryset):
-        """Annotate document queryset with number of accesses, taking into account ancestors."""
-
-        ancestor_accesses_query = (
-            models.DocumentAccess.objects.filter(
-                document__path=Left(db.OuterRef("path"), Length("document__path")),
-            )
-            .order_by()
-            .annotate(total_accesses=db.Func(db.Value("id"), function="COUNT"))
-            .values("total_accesses")
-        )
-        return queryset.annotate(nb_accesses=db.Subquery(ancestor_accesses_query))
 
     def annotate_is_favorite(self, queryset):
         """
@@ -453,6 +439,7 @@ class DocumentViewSet(
         on the document or its ancestors.
         """
         user = self.request.user
+        output_field = ArrayField(base_field=db.CharField())
 
         if user.is_authenticated:
             user_roles_subquery = models.DocumentAccess.objects.filter(
@@ -461,99 +448,95 @@ class DocumentViewSet(
             ).values_list("role", flat=True)
 
             return queryset.annotate(
-                user_roles=db.Func(user_roles_subquery, function="ARRAY")
+                user_roles=db.Func(
+                    user_roles_subquery, function="ARRAY", output_field=output_field
+                )
             )
 
         return queryset.annotate(
-            user_roles=db.Value([], output_field=ArrayField(base_field=db.CharField())),
+            user_roles=db.Value([], output_field=output_field),
         )
 
     def get_queryset(self):
         """Get queryset performing all annotation and filtering on the document tree structure."""
-        request = self.request
-        user = request.user
-        is_deleted = request.GET.get("is_deleted", "false").lower() in ["true", "1"]
-
+        user = self.request.user
         queryset = super().get_queryset()
 
-        # Annotate link trace to indicate if the user has already visited the document
-        # and filter based on user access
-        if user.is_authenticated:
-            if not is_deleted:
-                link_trace_subquery = models.LinkTrace.objects.filter(
-                    document=db.OuterRef("pk"), user=user
-                )
-                queryset = queryset.annotate(is_traced=db.Exists(link_trace_subquery))
+        if not self.detail:
+            if not user.is_authenticated:
+                return queryset.none()
 
-                if not self.detail:
-                    queryset = queryset.filter(
-                        db.Q(accesses__user=user)
-                        | db.Q(accesses__team__in=user.teams)
-                        | (
-                            db.Q(is_traced=True)
-                            & ~db.Q(link_reach=models.LinkReachChoices.RESTRICTED)
-                        )
-                    )
-        elif self.detail:
-            queryset = queryset.annotate(is_traced=db.Value(False))
-        else:
-            return queryset.none()
-
-        # Among the results, we may have documents that are ancestors/children of each other
-        # In this case we want to keep only the highest ancestor.
-        # As for deletion, as soon as a document is deleted, all its descendants are considered
-        # deleted as well.
-        ancestors_subquery = queryset.filter(
-            path=Left(db.OuterRef("path"), Length("path"))
-        )
-
-        # Annotate with the oldest `deleted_at` date among ancestors using the `Min` function`
-        queryset = queryset.annotate(
-            ancestors_deleted_at=db.Subquery(
-                ancestors_subquery.filter(deleted_at__isnull=False)
-                .annotate(min_deleted_at=db.Min("deleted_at"))
-                .values("min_deleted_at")[:1]
-            )
-        )
-
-        if not user.is_authenticated or (not self.detail and not is_deleted):
             queryset = queryset.filter(ancestors_deleted_at__isnull=True)
 
-        queryset = self.annotate_user_roles(queryset)
+            # Filter documents to which the current user has access
+            access_documents_ids = models.DocumentAccess.objects.filter(
+                db.Q(user=user) | db.Q(team__in=user.teams)
+            ).values_list("document_id", flat=True)
 
-        if user.is_authenticated:
-            trashbin_threshold = timezone.now() - timedelta(
-                days=settings.SOFT_DELETE_KEEP_DAYS
-            )
-            owner_trashbin_clause = (
-                db.Q(user_roles__contains=models.RoleChoices.OWNER)
-                & db.Q(ancestors_deleted_at__isnull=False)
-                & db.Q(ancestors_deleted_at__gte=trashbin_threshold)
-            )
-            if self.detail:
-                queryset = queryset.filter(
-                    owner_trashbin_clause | db.Q(ancestors_deleted_at__isnull=True)
+            traced_documents_ids = models.LinkTrace.objects.filter(
+                user=user
+            ).values_list("document_id", flat=True)
+
+            queryset = queryset.filter(
+                db.Q(id__in=access_documents_ids)
+                | (
+                    db.Q(id__in=traced_documents_ids)
+                    & ~db.Q(link_reach=models.LinkReachChoices.RESTRICTED)
                 )
-            elif is_deleted:
-                queryset = queryset.filter(owner_trashbin_clause)
+            )
 
-        if not self.detail:
-            # Keep only documents who are the annotated highest ancestor
-            queryset = queryset.annotate(
-                root_path=db.Subquery(
-                    ancestors_subquery.filter(deleted_at__isnull=not is_deleted)
-                    .order_by("path")
-                    .values("path")[:1]
-                )
-            ).filter(root_path=db.F("path"))
-
-        return queryset.distinct()
+        return queryset
 
     def filter_queryset(self, queryset):
         """Apply annotations and filters sequentially."""
+        filterset = DocumentFilter(
+            self.request.GET, queryset=queryset, request=self.request
+        )
+        filterset.is_valid()
+        filter_data = filterset.form.cleaned_data
+
+        # Filter as early as possible on fields that are available on the model
+        for field in ["is_creator_me", "title"]:
+            queryset = filterset.filters[field].filter(queryset, filter_data[field])
+
+        queryset = self.annotate_user_roles(queryset)
+
+        if self.action == "list":
+            # Among the results, we may have documents that are ancestors/descendants
+            # of each other. In this case we want to keep only the highest ancestors.
+            root_paths = utils.filter_root_paths(
+                queryset.order_by("path").values_list("path", flat=True),
+                skip_sorting=True,
+            )
+            queryset = queryset.filter(path__in=root_paths)
+
+            # Annotate the queryset with an attribute marking instances as highest ancestor
+            # in order to save some time while computing abilities in the instance
+            queryset = queryset.annotate(
+                is_highest_ancestor_for_user=db.Value(
+                    True, output_field=db.BooleanField()
+                )
+            )
+
+        # Annotate favorite status and filter if applicable as late as possible
         queryset = self.annotate_is_favorite(queryset)
-        queryset = super().filter_queryset(queryset)
-        return self.annotate_nb_accesses(queryset)
+        queryset = filterset.filters["is_favorite"].filter(
+            queryset, filter_data["is_favorite"]
+        )
+
+        # Apply ordering only now that everyting is filtered and annotated
+        return filters.OrderingFilter().filter_queryset(self.request, queryset, self)
+
+    def get_response_for_queryset(self, queryset):
+        """Return paginated response for the queryset if requested."""
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            result = self.get_paginated_response(serializer.data)
+            return result
+
+        serializer = self.get_serializer(queryset, many=True)
+        return drf.response.Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         """
@@ -561,10 +544,14 @@ class DocumentViewSet(
         on a user's list view even though the user has no specific role in the document (link
         access when the link reach configuration of the document allows it).
         """
+        user = self.request.user
         instance = self.get_object()
         serializer = self.get_serializer(instance)
 
-        if self.request.user.is_authenticated and not instance.is_traced:
+        if (
+            user.is_authenticated
+            and not instance.link_traces.filter(user=user).exists()
+        ):
             models.LinkTrace.objects.create(document=instance, user=request.user)
 
         return drf.response.Response(serializer.data)
@@ -585,6 +572,43 @@ class DocumentViewSet(
     def perform_destroy(self, instance):
         """Override to implement a soft delete instead of dumping the record in database."""
         instance.soft_delete()
+
+    @drf.decorators.action(
+        detail=False,
+        methods=["get"],
+    )
+    def favorite_list(self, request, *args, **kwargs):
+        """Get list of favorite documents for the current user."""
+        user = request.user
+
+        favorite_documents_ids = models.DocumentFavorite.objects.filter(
+            user=user
+        ).values_list("document_id", flat=True)
+
+        queryset = self.get_queryset()
+        queryset = queryset.filter(id__in=favorite_documents_ids)
+        return self.get_response_for_queryset(queryset)
+
+    @drf.decorators.action(
+        detail=False,
+        methods=["get"],
+        serializer_class=serializers.ListDocumentSerializer,
+    )
+    def trashbin(self, request, *args, **kwargs):
+        """
+        Retrieve soft-deleted documents for which the current user has the owner role.
+
+        The selected documents are those deleted within the cutoff period defined in the
+        settings (see TRASHBIN_CUTOFF_DAYS), before they are considered permanently deleted.
+        """
+        queryset = self.queryset.filter(
+            deleted_at__isnull=False,
+            deleted_at__gte=models.get_trashbin_cutoff(),
+        )
+        queryset = self.annotate_user_roles(queryset)
+        queryset = queryset.filter(user_roles__contains=[models.RoleChoices.OWNER])
+
+        return self.get_response_for_queryset(queryset)
 
     @drf.decorators.action(
         authentication_classes=[authentication.ServerToServerAuthentication],
@@ -708,15 +732,9 @@ class DocumentViewSet(
         # GET: List children
         queryset = document.get_children().filter(deleted_at__isnull=True)
         queryset = self.filter_queryset(queryset)
+        queryset = self.annotate_is_favorite(queryset)
         queryset = self.annotate_user_roles(queryset)
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return drf.response.Response(serializer.data)
+        return self.get_response_for_queryset(queryset)
 
     @drf.decorators.action(detail=True, methods=["get"], url_path="versions")
     def versions_list(self, request, *args, **kwargs):

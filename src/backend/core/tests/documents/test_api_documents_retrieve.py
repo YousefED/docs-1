@@ -4,6 +4,7 @@ Tests for Documents API endpoint in impress's core app: retrieve
 
 import random
 from datetime import timedelta
+from unittest import mock
 
 from django.utils import timezone
 
@@ -738,7 +739,7 @@ def test_api_documents_retrieve_user_roles(django_assert_num_queries):
     )
     expected_roles = {access.role for access in accesses}
 
-    with django_assert_num_queries(8):
+    with django_assert_num_queries(10):
         response = client.get(f"/api/v1.0/documents/{document.id!s}/")
 
     assert response.status_code == 200
@@ -755,7 +756,10 @@ def test_api_documents_retrieve_numqueries_with_link_trace(django_assert_num_que
 
     document = factories.DocumentFactory(users=[user], link_traces=[user])
 
-    with django_assert_num_queries(2):
+    with django_assert_num_queries(4):
+        response = client.get(f"/api/v1.0/documents/{document.id!s}/")
+
+    with django_assert_num_queries(3):
         response = client.get(f"/api/v1.0/documents/{document.id!s}/")
 
     assert response.status_code == 200
@@ -763,14 +767,14 @@ def test_api_documents_retrieve_numqueries_with_link_trace(django_assert_num_que
     assert response.json()["id"] == str(document.id)
 
 
-# Soft/hard delete
+# Soft/permanent delete
 
 
 @pytest.mark.parametrize("depth", [1, 2, 3])
 @pytest.mark.parametrize("reach", models.LinkReachChoices.values)
 def test_api_documents_retrieve_soft_deleted_anonymous(reach, depth):
     """
-    A soft/hard deleted public document should not be accessible via its
+    A soft/permanently deleted public document should not be accessible via its
     detail endpoint for anonymous users, and should return a 404.
     """
     documents = []
@@ -788,28 +792,29 @@ def test_api_documents_retrieve_soft_deleted_anonymous(reach, depth):
 
     # Delete any one of the documents...
     deleted_document = random.choice(documents)
-    deleted_document.deleted_at = timezone.now() - timedelta(days=15)
+    deleted_document.soft_delete()
+
+    response = APIClient().get(f"/api/v1.0/documents/{documents[-1].id!s}/")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Not found."}
+
+    fourty_days_ago = timezone.now() - timedelta(days=40)
+    deleted_document.deleted_at = fourty_days_ago
+    deleted_document.ancestors_deleted_at = fourty_days_ago
     deleted_document.save()
 
     response = APIClient().get(f"/api/v1.0/documents/{documents[-1].id!s}/")
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "No Document matches the given query."}
-
-    deleted_document.deleted_at = timezone.now() - timedelta(days=40)
-    deleted_document.save()
-
-    response = APIClient().get(f"/api/v1.0/documents/{documents[-1].id!s}/")
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "No Document matches the given query."}
+    assert response.json() == {"detail": "Not found."}
 
 
 @pytest.mark.parametrize("depth", [1, 2, 3])
 @pytest.mark.parametrize("reach", models.LinkReachChoices.values)
 def test_api_documents_retrieve_soft_deleted_authenticated(reach, depth):
     """
-    A soft/hard deleted document should not be accessible via its detail endpoint for
+    A soft/permanently deleted document should not be accessible via its detail endpoint for
     authenticated users not related to the document.
     """
     user = factories.UserFactory()
@@ -831,29 +836,30 @@ def test_api_documents_retrieve_soft_deleted_authenticated(reach, depth):
 
     # Delete any one of the documents...
     deleted_document = random.choice(documents)
-    deleted_document.deleted_at = timezone.now() - timedelta(days=15)
+    deleted_document.soft_delete()
+
+    response = client.get(f"/api/v1.0/documents/{documents[-1].id!s}/")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Not found."}
+
+    fourty_days_ago = timezone.now() - timedelta(days=40)
+    deleted_document.deleted_at = fourty_days_ago
+    deleted_document.ancestors_deleted_at = fourty_days_ago
     deleted_document.save()
 
     response = client.get(f"/api/v1.0/documents/{documents[-1].id!s}/")
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "No Document matches the given query."}
-
-    deleted_document.deleted_at = timezone.now() - timedelta(days=40)
-    deleted_document.save()
-
-    response = client.get(f"/api/v1.0/documents/{documents[-1].id!s}/")
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "No Document matches the given query."}
+    assert response.json() == {"detail": "Not found."}
 
 
 @pytest.mark.parametrize("depth", [1, 2, 3])
 @pytest.mark.parametrize("role", models.RoleChoices.values)
 def test_api_documents_retrieve_soft_deleted_related(role, depth):
     """
-    A soft deleted document should be accessible via its detail endpoint but only
-    for owners of the document.Hard deleted documents are not accessible any more.
+    A soft deleted document should only be accessible via its detail endpoint by
+    users with specific "owner" access rights.
     """
     user = factories.UserFactory()
     client = APIClient()
@@ -867,27 +873,59 @@ def test_api_documents_retrieve_soft_deleted_related(role, depth):
             else factories.DocumentFactory(parent=documents[-1])
         )
     assert models.Document.objects.count() == depth
+    document = documents[-1]
 
-    response = client.get(f"/api/v1.0/documents/{documents[-1].id!s}/")
+    response = client.get(f"/api/v1.0/documents/{document.id!s}/")
 
     assert response.status_code == 200
 
     # Delete any one of the documents
     deleted_document = random.choice(documents)
-    deleted_document.deleted_at = timezone.now() - timedelta(days=15)
-    deleted_document.save()
+    deleted_document.soft_delete()
 
-    response = client.get(f"/api/v1.0/documents/{documents[-1].id!s}/")
+    response = client.get(f"/api/v1.0/documents/{document.id!s}/")
 
-    # Only the owner of the document (not the owner of one of its ancestors) can
-    # see a deleted document (only he could have deleted it...)
-    assert response.status_code == 200 if role == "owner" and depth == 1 else 404
+    if role == "owner":
+        assert response.status_code == 200
+        assert response.json()["id"] == str(document.id)
+    else:
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not found."}
 
-    deleted_document.deleted_at = timezone.now() - timedelta(days=40)
-    deleted_document.save()
 
-    response = client.get(f"/api/v1.0/documents/{documents[-1].id!s}/")
+@pytest.mark.parametrize("depth", [1, 2, 3])
+@pytest.mark.parametrize("role", models.RoleChoices.values)
+def test_api_documents_retrieve_permanently_deleted_related(role, depth):
+    """
+    A permanently deleted document should not be accessible via its detail endpoint for
+    authenticated users with specific access rights whatever their role.
+    """
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    documents = []
+    for i in range(depth):
+        documents.append(
+            factories.UserDocumentAccessFactory(role=role, user=user).document
+            if i == 0
+            else factories.DocumentFactory(parent=documents[-1])
+        )
+    assert models.Document.objects.count() == depth
+    document = documents[-1]
+
+    response = client.get(f"/api/v1.0/documents/{document.id!s}/")
+
+    assert response.status_code == 200
+
+    # Delete any one of the documents
+    deleted_document = random.choice(documents)
+    fourty_days_ago = timezone.now() - timedelta(days=40)
+    with mock.patch("django.utils.timezone.now", return_value=fourty_days_ago):
+        deleted_document.soft_delete()
+
+    response = client.get(f"/api/v1.0/documents/{document.id!s}/")
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "No Document matches the given query."}
+    assert response.json() == {"detail": "Not found."}
 

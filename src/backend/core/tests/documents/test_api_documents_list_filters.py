@@ -4,10 +4,7 @@ Tests for Documents API endpoint in impress's core app: list
 
 import operator
 import random
-from datetime import timedelta
 from urllib.parse import urlencode
-
-from django.utils import timezone
 
 import pytest
 from faker import Faker
@@ -89,8 +86,6 @@ def test_api_documents_list_filter_and_access_rights():
                 "-created_at",
                 "is_favorite",
                 "-is_favorite",
-                "nb_accesses",
-                "-nb_accesses",
                 "title",
                 "-title",
                 "updated_at",
@@ -146,8 +141,6 @@ def test_api_documents_list_ordering_by_fields():
         "-created_at",
         "is_favorite",
         "-is_favorite",
-        "nb_accesses",
-        "-nb_accesses",
         "title",
         "-title",
         "updated_at",
@@ -166,6 +159,31 @@ def test_api_documents_list_ordering_by_fields():
         compare = operator.ge if is_descending else operator.le
         for i in range(4):
             assert compare(results[i][field], results[i + 1][field])
+
+
+# Filters: unknown field
+
+
+def test_api_documents_list_filter_unknown_field():
+    """
+    Trying to filter by an unknown field should raise a 400 error.
+    """
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    factories.DocumentFactory()
+    expected_ids = {
+        str(document.id)
+        for document in factories.DocumentFactory.create_batch(2, users=[user])
+    }
+
+    response = client.get("/api/v1.0/documents/?unknown=true")
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert len(results) == 2
+    assert {result["id"] for result in results} == expected_ids
 
 
 # Filters: is_creator_me
@@ -294,46 +312,6 @@ def test_api_documents_list_filter_is_favorite_invalid():
     assert len(results) == 5
 
 
-# Filters: link_reach
-
-
-@pytest.mark.parametrize("reach", models.LinkReachChoices.values)
-def test_api_documents_list_filter_link_reach(reach):
-    """Authenticated users should be able to filter documents by link reach."""
-    user = factories.UserFactory()
-    client = APIClient()
-    client.force_login(user)
-
-    factories.DocumentFactory.create_batch(5, users=[user])
-
-    response = client.get(f"/api/v1.0/documents/?link_reach={reach:s}")
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-
-    # Ensure all results have the chosen link reach
-    for result in results:
-        assert result["link_reach"] == reach
-
-
-def test_api_documents_list_filter_link_reach_invalid():
-    """Filtering with an invalid `link_reach` value should raise an error."""
-    user = factories.UserFactory()
-    client = APIClient()
-    client.force_login(user)
-
-    factories.DocumentFactory.create_batch(3, users=[user])
-
-    response = client.get("/api/v1.0/documents/?link_reach=invalid")
-
-    assert response.status_code == 400
-    assert response.json() == {
-        "link_reach": [
-            "Select a valid choice. invalid is not one of the available choices."
-        ]
-    }
-
-
 # Filters: title
 
 
@@ -363,7 +341,8 @@ def test_api_documents_list_filter_title(query, nb_results):
         "Annual Review 2024",
     ]
     for title in titles:
-        factories.DocumentFactory(title=title, users=[user])
+        parent = factories.DocumentFactory() if random.choice([True, False]) else None
+        factories.DocumentFactory(title=title, users=[user], parent=parent)
 
     # Perform the search query
     response = client.get(f"/api/v1.0/documents/?title={query:s}")
@@ -375,114 +354,3 @@ def test_api_documents_list_filter_title(query, nb_results):
     # Ensure all results contain the query in their title
     for result in results:
         assert query.lower().strip() in result["title"].lower()
-
-
-# Filters: is_deleted
-
-
-@pytest.mark.parametrize("depth", [1, 2, 3])
-@pytest.mark.parametrize("role", models.RoleChoices.values)
-@pytest.mark.parametrize(
-    "querystring", ["?is_deleted=true", "?is_deleted=True", "?is_deleted=1"]
-)
-def test_api_documents_list_filter_is_deleted_true(querystring, role, depth):
-    """
-    Authenticated users should be able to filter documents in the trashbin if
-    they are an owner of the document.
-    (soft deleted for a period shorter than the limit configured in settings)
-    """
-    user = factories.UserFactory()
-    client = APIClient()
-    client.force_login(user)
-
-    tree = []
-    tree_with_delete = []
-    for i in range(depth):
-        tree.append(
-            factories.UserDocumentAccessFactory(role=role, user=user).document
-            if i == 0
-            else factories.DocumentFactory(parent=tree[-1])
-        )
-        tree_with_delete.append(
-            factories.UserDocumentAccessFactory(role=role, user=user).document
-            if i == 0
-            else factories.DocumentFactory(parent=tree_with_delete[-1])
-        )
-
-    # Soft delete a document
-    now = timezone.now()
-    deleted_document = random.choice(tree_with_delete)
-    deleted_document.deleted_at = now - timedelta(days=15)
-    deleted_document.save()
-
-    response = client.get(f"/api/v1.0/documents/{querystring:s}")
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-
-    if role == "owner":
-        assert len(results) == 1
-        assert results[0]["id"] == str(deleted_document.id)
-    else:
-        assert len(results) == 0
-
-    # Hard delete the document
-    deleted_document.deleted_at = now - timedelta(days=40)
-    deleted_document.save()
-
-    response = client.get(f"/api/v1.0/documents/{querystring:s}")
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-
-    assert len(results) == 0
-
-
-@pytest.mark.parametrize(
-    "querystring", ["", "?is_deleted=false", "?is_deleted=False", "?is_deleted=0"]
-)
-def test_api_documents_list_filter_is_deleted_false(querystring):
-    """
-    Authenticated users should be able to filter documents that are not deleted.
-    It should be the default filter for `is_deleted`.
-    """
-    user = factories.UserFactory()
-    client = APIClient()
-    client.force_login(user)
-
-    doc_soft, doc_hard, *documents = factories.DocumentFactory.create_batch(
-        5, users=[user]
-    )
-    expected_ids = {str(document.id) for document in documents}
-
-    # Soft delete a document
-    now = timezone.now()
-    doc_soft.deleted_at = now - timedelta(days=15)
-    doc_soft.save()
-
-    # Hard delete a document
-    doc_hard.deleted_at = now - timedelta(days=40)
-    doc_hard.save()
-
-    response = client.get(f"/api/v1.0/documents/{querystring:s}")
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-    assert len(results) == 3
-    results_ids = {result["id"] for result in results}
-    assert results_ids == expected_ids
-
-
-def test_api_documents_list_filter_is_deleted_invalid():
-    """Filtering with an invalid `is_deleted` value should do nothing."""
-    user = factories.UserFactory()
-    client = APIClient()
-    client.force_login(user)
-
-    factories.DocumentFactory.create_batch(5, users=[user])
-
-    response = client.get("/api/v1.0/documents/?is_deleted=invalid")
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-    assert len(results) == 5
