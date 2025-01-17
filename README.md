@@ -20,10 +20,10 @@ Compose](https://docs.docker.com/compose/install) installed on your laptop:
 
 ```bash
 $ docker -v
-  Docker version 20.10.2, build 2291f61
+  Docker version 27.4.1, build b9d17ea
 
-$ docker compose -v
-  docker compose version 1.27.4, build 40524192
+$ docker compose version
+  Docker Compose version v2.32.1
 ```
 
 > ⚠️ You may need to run the following commands with `sudo` but this can be
