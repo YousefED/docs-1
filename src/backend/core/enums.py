@@ -2,7 +2,9 @@
 Core application enums declaration
 """
 
-from django.conf import global_settings
+import re
+
+from django.conf import global_settings, settings
 from django.utils.translation import gettext_lazy as _
 
 # In Django's code base, `LANGUAGES` is set by default with all supported languages.
@@ -10,3 +12,17 @@ from django.utils.translation import gettext_lazy as _
 # active in the app.
 # pylint: disable=no-member
 ALL_LANGUAGES = {language: _(name) for language, name in global_settings.LANGUAGES}
+
+ATTACHMENTS_FOLDER = "attachments"
+UUID_REGEX = (
+    r"[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}"
+)
+FILE_EXT_REGEX = r"\.[a-zA-Z]{3,4}"
+MEDIA_STORAGE_URL_PATTERN = re.compile(
+    f"{settings.MEDIA_URL:s}(?P<pk>{UUID_REGEX:s})/"
+    f"(?P<attachment>{ATTACHMENTS_FOLDER:s}/{UUID_REGEX:s}{FILE_EXT_REGEX:s})$"
+)
+MEDIA_STORAGE_URL_EXTRACT = re.compile(
+    f"{settings.MEDIA_URL:s}({UUID_REGEX}/{ATTACHMENTS_FOLDER}/{UUID_REGEX}{FILE_EXT_REGEX})"
+)
+COLLABORATION_WS_URL_PATTERN = re.compile(rf"(?:^|&)room=(?P<pk>{UUID_REGEX})(?:&|$)")

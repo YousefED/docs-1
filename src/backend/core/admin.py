@@ -119,6 +119,29 @@ class DocumentAccessInline(admin.TabularInline):
 class DocumentAdmin(admin.ModelAdmin):
     """Document admin interface declaration."""
 
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "id",
+                    "title",
+                )
+            },
+        ),
+        (
+            _("Permissions"),
+            {
+                "fields": (
+                    "creator",
+                    "link_reach",
+                    "link_role",
+                    "duplicated_from",
+                    "attachments",
+                )
+            },
+        ),
+    )
     inlines = (DocumentAccessInline,)
     list_display = (
         "id",
@@ -128,6 +151,13 @@ class DocumentAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
+    readonly_fields = (
+        "creator",
+        "id",
+        "duplicated_from",
+        "attachments",
+    )
+    search_fields = ("id", "title")
 
 
 @admin.register(models.Invitation)

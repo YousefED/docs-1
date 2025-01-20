@@ -66,9 +66,11 @@ def test_api_documents_attachment_upload_anonymous_success():
     pattern = re.compile(rf"^/media/{document.id!s}/attachments/(.*)\.png")
     match = pattern.search(response.json()["file"])
     file_id = match.group(1)
-
     # Validate that file_id is a valid UUID
     uuid.UUID(file_id)
+
+    document.refresh_from_db()
+    assert document.attachments == [f"{document.id!s}/attachments/{file_id!s}.png"]
 
 
 @pytest.mark.parametrize(
@@ -101,6 +103,9 @@ def test_api_documents_attachment_upload_authenticated_forbidden(reach, role):
         "detail": "You do not have permission to perform this action."
     }
 
+    document.refresh_from_db()
+    assert document.attachments == []
+
 
 @pytest.mark.parametrize(
     "reach, role",
@@ -111,8 +116,8 @@ def test_api_documents_attachment_upload_authenticated_forbidden(reach, role):
 )
 def test_api_documents_attachment_upload_authenticated_success(reach, role):
     """
-    Autenticated who are not related to a document should be able to upload a file
-    if the link reach and role permit it.
+    Autenticated users who are not related to a document should be able to upload
+    a file when the link reach and role permit it.
     """
     user = factories.UserFactory()
 
@@ -133,6 +138,9 @@ def test_api_documents_attachment_upload_authenticated_success(reach, role):
 
     # Validate that file_id is a valid UUID
     uuid.UUID(file_id)
+
+    document.refresh_from_db()
+    assert document.attachments == [f"{document.id!s}/attachments/{file_id!s}.png"]
 
 
 @pytest.mark.parametrize("via", VIA)
@@ -163,6 +171,9 @@ def test_api_documents_attachment_upload_reader(via, mock_user_teams):
     assert response.json() == {
         "detail": "You do not have permission to perform this action."
     }
+
+    document.refresh_from_db()
+    assert document.attachments == []
 
 
 @pytest.mark.parametrize("role", ["editor", "administrator", "owner"])
@@ -200,6 +211,9 @@ def test_api_documents_attachment_upload_success(via, role, mock_user_teams):
     # Validate that file_id is a valid UUID
     uuid.UUID(file_id)
 
+    document.refresh_from_db()
+    assert document.attachments == [f"{document.id!s}/attachments/{file_id!s}.png"]
+
     # Now, check the metadata of the uploaded file
     key = file_path.replace("/media", "")
     file_head = default_storage.connection.meta.client.head_object(
@@ -223,6 +237,9 @@ def test_api_documents_attachment_upload_invalid(client):
     assert response.status_code == 400
     assert response.json() == {"file": ["No file was submitted."]}
 
+    document.refresh_from_db()
+    assert document.attachments == []
+
 
 def test_api_documents_attachment_upload_size_limit_exceeded(settings):
     """The uploaded file should not exceeed the maximum size in settings."""
@@ -244,6 +261,9 @@ def test_api_documents_attachment_upload_size_limit_exceeded(settings):
 
     assert response.status_code == 400
     assert response.json() == {"file": ["File size exceeds the maximum limit of 1 MB."]}
+
+    document.refresh_from_db()
+    assert document.attachments == []
 
 
 @pytest.mark.parametrize(
@@ -281,6 +301,11 @@ def test_api_documents_attachment_upload_fix_extension(name, content, extension)
     # Validate that file_id is a valid UUID
     uuid.UUID(file_id)
 
+    document.refresh_from_db()
+    assert document.attachments == [
+        f"{document.id!s}/attachments/{file_id!s}.{extension:s}"
+    ]
+
     # Now, check the metadata of the uploaded file
     key = file_path.replace("/media", "")
     file_head = default_storage.connection.meta.client.head_object(
@@ -303,6 +328,9 @@ def test_api_documents_attachment_upload_empty_file():
 
     assert response.status_code == 400
     assert response.json() == {"file": ["The submitted file is empty."]}
+
+    document.refresh_from_db()
+    assert document.attachments == []
 
 
 def test_api_documents_attachment_upload_unsafe():
@@ -328,6 +356,9 @@ def test_api_documents_attachment_upload_unsafe():
 
     # Validate that file_id is a valid UUID
     uuid.UUID(file_id)
+
+    document.refresh_from_db()
+    assert document.attachments == [f"{document.id!s}/attachments/{file_id!s}.exe"]
 
     # Now, check the metadata of the uploaded file
     key = file_path.replace("/media", "")

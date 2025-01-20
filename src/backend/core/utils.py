@@ -1,9 +1,12 @@
 """Utils for the core app."""
 
 import base64
+import re
 
 import y_py as Y
 from bs4 import BeautifulSoup
+
+from core import enums
 
 
 def base64_yjs_to_xml(base64_string):
@@ -23,3 +26,9 @@ def base64_yjs_to_text(base64_string):
     blocknote_structure = base64_yjs_to_xml(base64_string)
     soup = BeautifulSoup(blocknote_structure, "html.parser")
     return soup.get_text(separator=" ").strip()
+
+
+def extract_attachments(document):
+    """Helper method to extract media paths from a document's content."""
+    xml_content = base64_yjs_to_xml(document.content)
+    return re.findall(enums.MEDIA_STORAGE_URL_EXTRACT, xml_content)

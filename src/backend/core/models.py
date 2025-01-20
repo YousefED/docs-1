@@ -15,6 +15,7 @@ from logging import getLogger
 from django.conf import settings
 from django.contrib.auth import models as auth_models
 from django.contrib.auth.base_user import AbstractBaseUser
+from django.contrib.postgres.fields import ArrayField
 from django.contrib.sites.models import Site
 from django.core import exceptions, mail, validators
 from django.core.files.base import ContentFile
@@ -376,6 +377,54 @@ class BaseAccess(BaseModel):
         }
 
 
+class DocumentQuerySet(models.QuerySet):
+    """
+    Custom queryset for the Document model, providing additional methods
+    to filter documents based on user permissions.
+    """
+
+    def readable(self, user):
+        """
+        Filters the queryset to return documents that the given user has
+        permission to read.
+
+        :param user: The user for whom readable documents are to be fetched.
+        :return: A queryset of documents readable by the user.
+        """
+        if user.is_authenticated:
+            return self.filter(
+                models.Q(accesses__user=user)
+                | models.Q(accesses__team__in=user.teams)
+                | ~models.Q(link_reach=LinkReachChoices.RESTRICTED)
+            )
+
+        return self.filter(models.Q(link_reach=LinkReachChoices.PUBLIC))
+
+
+class DocumentManager(models.Manager):
+    """
+    Custom manager for the Document model, enabling the use of the custom
+    queryset methods directly from the model manager.
+    """
+
+    def get_queryset(self):
+        """
+        Overrides the default get_queryset method to return a custom queryset.
+
+        :return: An instance of DocumentQuerySet.
+        """
+        return DocumentQuerySet(self.model, using=self._db)
+
+    def readable(self, user):
+        """
+        Filters documents based on user permissions using the custom queryset.
+
+        :param user: The user for whom readable documents are to be fetched.
+        :return: A queryset of documents readable by the user.
+        """
+        return self.get_queryset().readable(user)
+
+
 class Document(BaseModel):
     """Pad document carrying the content."""
 
@@ -395,8 +444,25 @@ class Document(BaseModel):
         blank=True,
         null=True,
     )
+    duplicated_from = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="duplicates",
+        editable=False,
+        blank=True,
+        null=True,
+    )
+    attachments = ArrayField(
+        models.CharField(max_length=255),
+        default=list,
+        editable=False,
+        blank=True,
+        null=True,
+    )
 
     _content = None
+
+    objects = DocumentManager()
 
     class Meta:
         db_table = "impress_document"
@@ -573,6 +639,7 @@ class Document(BaseModel):
             "attachment_upload": can_update,
             "collaboration_auth": can_get,
             "destroy": RoleChoices.OWNER in roles,
+            "duplicate": can_get,
             "favorite": can_get and user.is_authenticated,
             "link_configuration": is_owner_or_admin,
             "invite_owner": RoleChoices.OWNER in roles,
