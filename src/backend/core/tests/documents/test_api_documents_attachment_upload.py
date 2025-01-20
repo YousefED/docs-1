@@ -260,11 +260,11 @@ def test_api_documents_attachment_upload_size_limit_exceeded(settings):
 @pytest.mark.parametrize(
     "name,content,extension,content_type",
     [
-        ("test.exe", b"text", "exe", "application/x-msdownload"),
-        ("test", b"text", "txt", "application/x-unknown-content-type"),
-        ("test.aaaaaa", b"test", "txt", "application/x-unknown-content-type"),
-        ("test.txt", PIXEL, "txt", "text/plain"),
-        ("test.py", b"#!/usr/bin/python", "py", "text/x-python"),
+        ("test.exe", b"text", "exe", "text/plain"),
+        ("test", b"text", "txt", "text/plain"),
+        ("test.aaaaaa", b"test", "txt", "text/plain"),
+        ("test.txt", PIXEL, "txt", "image/png"),
+        ("test.py", b"#!/usr/bin/python", "py", "text/plain"),
     ],
 )
 def test_api_documents_attachment_upload_fix_extension(
@@ -349,4 +349,4 @@ def test_api_documents_attachment_upload_unsafe():
         Bucket=default_storage.bucket_name, Key=key
     )
     assert file_head["Metadata"] == {"owner": str(user.id), "is_unsafe": "true"}
-    assert file_head["ContentType"] == "application/x-msdownload"
+    assert file_head["ContentType"] == "application/octet-stream"
