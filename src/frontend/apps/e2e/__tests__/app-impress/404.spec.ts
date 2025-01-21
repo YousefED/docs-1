@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
   await expect(
     page.locator('header').first().locator('h2').getByText('Docs'),
   ).toBeVisible();
@@ -24,6 +24,6 @@ test.describe('404', () => {
     page,
   }) => {
     await page.getByText('Back to home page').click();
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/docs/');
   });
 });

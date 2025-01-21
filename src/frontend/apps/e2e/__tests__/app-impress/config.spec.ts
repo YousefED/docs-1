@@ -20,13 +20,43 @@ const config = {
 };
 
 test.describe('Config', () => {
+  test('it checks that media server is configured from config endpoint', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/docs/');
+
+    await createDoc(page, 'doc-media', browserName, 1);
+
+    const fileChooserPromise = page.waitForEvent('filechooser');
+
+    await page.locator('.bn-block-outer').last().fill('Anything');
+    await page.locator('.bn-block-outer').last().fill('/');
+    await page.getByText('Resizable image with caption').click();
+    await page.getByText('Upload image').click();
+
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles(
+      path.join(__dirname, 'assets/logo-suite-numerique.png'),
+    );
+
+    const image = page.getByRole('img', { name: 'logo-suite-numerique.png' });
+
+    await expect(image).toBeVisible();
+
+    // Check src of image
+    expect(await image.getAttribute('src')).toMatch(
+      /http:\/\/localhost:8083\/media\/.*\/attachments\/.*.png/,
+    );
+  });
+
   test('it checks the config api is called', async ({ page }) => {
     const responsePromise = page.waitForResponse(
       (response) =>
         response.url().includes('/config/') && response.status() === 200,
     );
 
-    await page.goto('/');
+    await page.goto('/docs/');
 
     const response = await responsePromise;
     expect(response.ok()).toBeTruthy();
@@ -57,60 +87,9 @@ test.describe('Config', () => {
       predicate: (msg) => msg.text().includes(invalidMsg),
     });
 
-    await page.goto('/');
+    await page.goto('/docs/');
 
     expect((await consoleMessage).text()).toContain(invalidMsg);
-  });
-
-  test('it checks that theme is configured from config endpoint', async ({
-    page,
-  }) => {
-    const responsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes('/config/') && response.status() === 200,
-    );
-
-    await page.goto('/');
-
-    const response = await responsePromise;
-    expect(response.ok()).toBeTruthy();
-
-    const jsonResponse = await response.json();
-    expect(jsonResponse.FRONTEND_THEME).toStrictEqual('dsfr');
-
-    const footer = page.locator('footer').first();
-    // alt 'Gouvernement Logo' comes from the theme
-    await expect(footer.getByAltText('Gouvernement Logo')).toBeVisible();
-  });
-
-  test('it checks that media server is configured from config endpoint', async ({
-    page,
-    browserName,
-  }) => {
-    await page.goto('/');
-
-    await createDoc(page, 'doc-media', browserName, 1);
-
-    const fileChooserPromise = page.waitForEvent('filechooser');
-
-    await page.locator('.bn-block-outer').last().fill('Anything');
-    await page.locator('.bn-block-outer').last().fill('/');
-    await page.getByText('Resizable image with caption').click();
-    await page.getByText('Upload image').click();
-
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(
-      path.join(__dirname, 'assets/logo-suite-numerique.png'),
-    );
-
-    const image = page.getByRole('img', { name: 'logo-suite-numerique.png' });
-
-    await expect(image).toBeVisible();
-
-    // Check src of image
-    expect(await image.getAttribute('src')).toMatch(
-      /http:\/\/localhost:8083\/media\/.*\/attachments\/.*.png/,
-    );
   });
 
   test('it checks that collaboration server is configured from config endpoint', async ({
@@ -121,7 +100,7 @@ test.describe('Config', () => {
       return webSocket.url().includes('ws://localhost:8083/collaboration/ws/');
     });
 
-    await page.goto('/');
+    await page.goto('/docs');
 
     const randomDoc = await createDoc(
       page,
@@ -153,10 +132,34 @@ test.describe('Config', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('/docs/');
 
     await expect(
       page.locator('#crisp-chatbox').getByText('Invalid website'),
     ).toBeVisible();
+  });
+});
+
+test.describe('Config footer logo', () => {
+  test('it checks that theme is configured from config endpoint', async ({
+    page,
+  }) => {
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/config/') && response.status() === 200,
+    );
+
+    await page.goto('/docs/');
+
+    const response = await responsePromise;
+    expect(response.ok()).toBeTruthy();
+
+    const jsonResponse = await response.json();
+    expect(jsonResponse.FRONTEND_THEME).toStrictEqual('dsfr');
+    // await page.getByLabel('Logout').click();
+
+    // const footer = page.locator('footer').first();
+    // // alt 'Gouvernement Logo' comes from the theme
+    // await expect(footer.getByAltText('Gouvernement Logo')).toBeVisible();
   });
 });

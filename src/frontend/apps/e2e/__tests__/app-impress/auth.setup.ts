@@ -3,7 +3,8 @@ import { test as setup } from '@playwright/test';
 import { keyCloakSignIn } from './common';
 
 setup('authenticate-chromium', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
+  await page.getByTestId('proconnect-button').first().click();
   await keyCloakSignIn(page, 'chromium');
   await page
     .context()
@@ -11,7 +12,8 @@ setup('authenticate-chromium', async ({ page }) => {
 });
 
 setup('authenticate-webkit', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
+  await page.getByTestId('proconnect-button').first().click();
   await keyCloakSignIn(page, 'webkit');
   await page
     .context()
@@ -19,7 +21,8 @@ setup('authenticate-webkit', async ({ page }) => {
 });
 
 setup('authenticate-firefox', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
+  await page.getByTestId('proconnect-button').first().click();
   await keyCloakSignIn(page, 'firefox');
   await page
     .context()

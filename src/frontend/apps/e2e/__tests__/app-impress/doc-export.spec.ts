@@ -6,7 +6,7 @@ import pdf from 'pdf-parse';
 import { createDoc, verifyDocName } from './common';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
 });
 
 test.describe('Doc Export', () => {

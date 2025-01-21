@@ -10,7 +10,7 @@ type SmallDoc = {
 test.describe('Document favorite', () => {
   test('it check the favorite workflow', async ({ page, browserName }) => {
     const id = Math.random().toString(7);
-    await page.goto('/');
+    await page.goto('/docs/');
 
     // Create document
     const createdDoc = await createDoc(page, `Doc ${id}`, browserName, 1);
@@ -18,7 +18,7 @@ test.describe('Document favorite', () => {
 
     // Reload page
     await page.reload();
-    await page.goto('/');
+    await page.goto('/docs/');
 
     // Get all documents
     let docs: SmallDoc[] = [];

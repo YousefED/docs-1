@@ -4,7 +4,7 @@ import { keyCloakSignIn, mockedDocument } from './common';
 
 test.describe('Doc Routing', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs/');
   });
 
   test('Check the presence of the meta tag noindex', async ({ page }) => {
@@ -24,7 +24,7 @@ test.describe('Doc Routing', () => {
   });
 
   test('checks alias docs url with homepage', async ({ page }) => {
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/docs/');
 
     const buttonCreateHomepage = page.getByRole('button', {
       name: 'New doc',
@@ -62,17 +62,18 @@ test.describe('Doc Routing: Not loggued', () => {
     await mockedDocument(page, { link_reach: 'public' });
     await page.goto('/docs/mocked-document-id/');
     await expect(page.locator('h2').getByText('Mocked document')).toBeVisible();
+
     await page.getByRole('button', { name: 'Login' }).click();
+
     await keyCloakSignIn(page, browserName);
     await expect(page.locator('h2').getByText('Mocked document')).toBeVisible();
   });
 
-  test('The homepage redirects to login.', async ({ page }) => {
-    await page.goto('/');
-    await expect(
-      page.getByRole('button', {
-        name: 'Sign In',
-      }),
-    ).toBeVisible();
+  test('Check is redirected to home page if user is not logged', async ({
+    page,
+  }) => {
+    await page.goto('/docs/');
+
+    await expect(page.getByTestId('proconnect-button').first()).toBeVisible();
   });
 });

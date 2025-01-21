@@ -10,7 +10,7 @@ type SmallDoc = {
 };
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
 });
 
 test.describe('Document search', () => {
@@ -34,7 +34,7 @@ test.describe('Document search', () => {
 
     const doc1 = await createDoc(page, `My super ${id} doc`, browserName, 1);
     await verifyDocName(page, doc1[0]);
-    await page.goto('/');
+    await page.goto('/docs/');
     const doc2 = await createDoc(
       page,
       `My super ${id} very doc`,
@@ -42,7 +42,7 @@ test.describe('Document search', () => {
       1,
     );
     await verifyDocName(page, doc2[0]);
-    await page.goto('/');
+    await page.goto('/docs/');
     await page.getByRole('button', { name: 'search' }).click();
     await page.getByPlaceholder('Type the name of a document').click();
     await page

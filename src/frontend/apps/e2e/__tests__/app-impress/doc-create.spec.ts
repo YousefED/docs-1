@@ -9,7 +9,7 @@ import {
 } from './common';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
 });
 
 test.describe('Doc Create', () => {
@@ -62,7 +62,7 @@ test.describe('Doc Create: Not loggued', () => {
     );
 
     expect(newDoc.ok()).toBeTruthy();
-
+    await page.getByTestId('proconnect-button').first().click();
     await keyCloakSignIn(page, browserName);
 
     await goToGridDoc(page, { title });

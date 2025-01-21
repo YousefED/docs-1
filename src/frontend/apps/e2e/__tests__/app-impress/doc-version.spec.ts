@@ -8,7 +8,7 @@ import {
 } from './common';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
 });
 
 test.describe('Doc Version', () => {

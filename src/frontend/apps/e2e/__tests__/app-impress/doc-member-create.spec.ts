@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { createDoc, randomName } from './common';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
 });
 
 test.describe('Document create member', () => {

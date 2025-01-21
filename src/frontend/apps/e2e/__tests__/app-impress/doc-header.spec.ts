@@ -10,7 +10,7 @@ import {
 } from './common';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
 });
 
 test.describe('Doc Header', () => {
@@ -427,7 +427,7 @@ test.describe('Documents Header mobile', () => {
   test.use({ viewport: { width: 500, height: 1200 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs/');
   });
 
   test('it checks the copy link button', async ({ page, browserName }) => {

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Left panel desktop', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs/');
   });
 
   test('checks all the elements are visible', async ({ page }) => {
@@ -17,7 +17,7 @@ test.describe('Left panel mobile', () => {
   test.use({ viewport: { width: 500, height: 1200 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs/');
   });
 
   test('checks all the desktop elements are hidden and all mobile elements are visible', async ({

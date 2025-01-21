@@ -4,7 +4,7 @@ import { keyCloakSignIn } from './common';
 
 test.describe('Header', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs/');
   });
 
   test('checks all the elements are visible', async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe('Header mobile', () => {
   test.use({ viewport: { width: 500, height: 1200 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs/');
   });
 
   test('it checks the header when mobile', async ({ page }) => {
@@ -89,7 +89,8 @@ test.describe('Header: Log out', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test('checks logout button', async ({ page, browserName }) => {
-    await page.goto('/');
+    await page.goto('/docs/');
+    await page.getByTestId('proconnect-button').first().click();
     await keyCloakSignIn(page, browserName);
 
     await page
@@ -98,6 +99,6 @@ test.describe('Header: Log out', () => {
       })
       .click();
 
-    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+    await expect(page.getByTestId('proconnect-button')).toHaveCount(2);
   });
 });

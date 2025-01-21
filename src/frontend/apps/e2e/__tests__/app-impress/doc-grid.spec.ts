@@ -6,14 +6,14 @@ type SmallDoc = {
 };
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
 });
 
 test.describe('Documents Grid mobile', () => {
   test.use({ viewport: { width: 500, height: 1200 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs/');
   });
 
   test('it checks the grid when mobile', async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe('Documents Grid mobile', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('/docs/');
 
     const docsGrid = page.getByTestId('docs-grid');
     await expect(docsGrid).toBeVisible();
@@ -168,7 +168,7 @@ test.describe('Document grid item options', () => {
         },
       });
     });
-    await page.goto('/');
+    await page.goto('/docs/');
 
     const button = page.getByTestId(
       `docs-grid-actions-button-mocked-document-id`,
@@ -259,7 +259,7 @@ test.describe('Documents filters', () => {
 
 test.describe('Documents Grid', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs/');
   });
 
   test('checks all the elements are visible', async ({ page }) => {

@@ -10,10 +10,36 @@ import {
 } from './common';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs/');
 });
 
 test.describe('Doc Editor', () => {
+  test('it saves the doc when we change pages', async ({
+    page,
+    browserName,
+  }) => {
+    // Check the first doc
+    const [doc] = await createDoc(page, 'doc-saves-change', browserName, 1);
+    await verifyDocName(page, doc);
+
+    const editor = page.locator('.ProseMirror');
+    await editor.click();
+    await editor.fill('Hello World Doc persisted 1');
+    await expect(editor.getByText('Hello World Doc persisted 1')).toBeVisible();
+
+    const secondDoc = await goToGridDoc(page, {
+      nthRow: 2,
+    });
+
+    await verifyDocName(page, secondDoc);
+
+    await goToGridDoc(page, {
+      title: doc,
+    });
+
+    await expect(editor.getByText('Hello World Doc persisted 1')).toBeVisible();
+  });
+
   test('it check translations of the slash menu when changing language', async ({
     page,
     browserName,
@@ -215,32 +241,6 @@ test.describe('Doc Editor', () => {
     await expect(editor.getByText('Hello World Doc 2')).toBeHidden();
   });
 
-  test('it saves the doc when we change pages', async ({
-    page,
-    browserName,
-  }) => {
-    // Check the first doc
-    const [doc] = await createDoc(page, 'doc-saves-change', browserName, 1);
-    await verifyDocName(page, doc);
-
-    const editor = page.locator('.ProseMirror');
-    await editor.click();
-    await editor.fill('Hello World Doc persisted 1');
-    await expect(editor.getByText('Hello World Doc persisted 1')).toBeVisible();
-
-    const secondDoc = await goToGridDoc(page, {
-      nthRow: 2,
-    });
-
-    await verifyDocName(page, secondDoc);
-
-    await goToGridDoc(page, {
-      title: doc,
-    });
-
-    await expect(editor.getByText('Hello World Doc persisted 1')).toBeVisible();
-  });
-
   test('it saves the doc when we quit pages', async ({ page, browserName }) => {
     // eslint-disable-next-line playwright/no-skipped-test
     test.skip(browserName === 'webkit', 'This test is very flaky with webkit');
@@ -255,7 +255,7 @@ test.describe('Doc Editor', () => {
     await editor.fill('Hello World Doc persisted 2');
     await expect(editor.getByText('Hello World Doc persisted 2')).toBeVisible();
 
-    await page.goto('/');
+    await page.goto('/docs/');
 
     await goToGridDoc(page, {
       title: doc,
