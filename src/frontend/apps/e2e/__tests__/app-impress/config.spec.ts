@@ -16,6 +16,7 @@ const config = {
     ['de-de', 'German'],
   ],
   LANGUAGE_CODE: 'en-us',
+  POSTHOG_KEY: null,
   SENTRY_DSN: null,
 };
 
@@ -44,6 +45,37 @@ test.describe('Config', () => {
           json: {
             ...config,
             SENTRY_DSN: 'https://sentry.io/123',
+          },
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    const invalidMsg = 'Invalid Sentry Dsn: https://sentry.io/123';
+    const consoleMessage = page.waitForEvent('console', {
+      timeout: 5000,
+      predicate: (msg) => msg.text().includes(invalidMsg),
+    });
+
+    await page.goto('/');
+
+    expect((await consoleMessage).text()).toContain(invalidMsg);
+  });
+
+  test('it checks that posthog is trying to init from config endpoint', async ({
+    page,
+  }) => {
+    await page.route('**/api/v1.0/config/', async (route) => {
+      const request = route.request();
+      if (request.method().includes('GET')) {
+        await route.fulfill({
+          json: {
+            ...config,
+            POSTHOG_KEY: {
+              id: '132456',
+              host: 'https://eu.i.posthog-test.whatever',
+            },
           },
         });
       } else {
