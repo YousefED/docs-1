@@ -1,5 +1,5 @@
 import { Loader } from '@openfun/cunningham-react';
-import { useRouter } from 'next/router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { css } from 'styled-components';
 import * as Y from 'yjs';
@@ -13,7 +13,11 @@ import {
   useProviderStore,
 } from '@/features/docs/doc-management';
 import { TableContent } from '@/features/docs/doc-table-content/';
-import { Versions, useDocVersion } from '@/features/docs/doc-versioning/';
+import {
+  KEY_LIST_DOC_VERSIONS,
+  Versions,
+  useDocVersion,
+} from '@/features/docs/doc-versioning/';
 import { useResponsiveStore } from '@/stores';
 
 import { BlockNoteEditor, BlockNoteEditorVersion } from './BlockNoteEditor';
@@ -25,7 +29,12 @@ interface DocEditorProps {
 
 export const DocEditor = ({ doc, versionId }: DocEditorProps) => {
   const { isDesktop } = useResponsiveStore();
-
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    console.log('doc LOL', doc);
+    // void queryClient.invalidateQueries({ queryKey: [KEY_LIST_DOC] });
+    void queryClient.invalidateQueries({ queryKey: [KEY_LIST_DOC_VERSIONS] });
+  }, [doc, queryClient]);
   const isVersion = !!versionId && typeof versionId === 'string';
 
   const { colorsTokens } = useCunninghamTheme();
@@ -97,7 +106,7 @@ export const DocVersionEditor = ({
     versionId,
   });
 
-  const { replace } = useRouter();
+  // const { replace } = useRouter();
   const [initialContent, setInitialContent] = useState<Y.XmlFragment>();
 
   useEffect(() => {
@@ -110,7 +119,7 @@ export const DocVersionEditor = ({
 
   if (isError && error) {
     if (error.status === 404) {
-      void replace(`/404`);
+      // void replace(`/404`);
       return null;
     }
 

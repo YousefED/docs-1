@@ -33,7 +33,7 @@ export function DocLayout() {
         <meta name="robots" content="noindex" />
       </Head>
 
-      <MainLayout withoutFooter>
+      <MainLayout>
         <DocPage id={id} />
       </MainLayout>
     </>
@@ -46,6 +46,7 @@ interface DocProps {
 
 const DocPage = ({ id }: DocProps) => {
   const { login } = useAuthStore();
+
   const {
     data: docQuery,
     isError,
