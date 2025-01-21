@@ -28,7 +28,9 @@ def base64_yjs_to_text(base64_string):
     return soup.get_text(separator=" ").strip()
 
 
-def extract_attachments(document):
+def extract_attachments(content):
     """Helper method to extract media paths from a document's content."""
-    xml_content = base64_yjs_to_xml(document.content)
+    if not content:
+        return []
+    xml_content = base64_yjs_to_xml(content)
     return re.findall(enums.MEDIA_STORAGE_URL_EXTRACT, xml_content)

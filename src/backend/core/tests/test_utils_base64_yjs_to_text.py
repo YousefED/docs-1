@@ -5,7 +5,7 @@ import uuid
 
 import y_py
 
-from core import models, utils
+from core import utils
 from core.utils import base64_yjs_to_text
 
 
