@@ -38,7 +38,8 @@ DB_PORT            = 5432
 DOCKER_UID          = $(shell id -u)
 DOCKER_GID          = $(shell id -g)
 DOCKER_USER         = $(DOCKER_UID):$(DOCKER_GID)
-COMPOSE             = DOCKER_USER=$(DOCKER_USER) docker compose
+COMPOSE             = DOCKER_USER=$(DOCKER_USER) ./bin/compose
+COMPOSE_PRODUCTION  = DOCKER_USER=$(DOCKER_USER) COMPOSE_FILE=compose.production.yaml ./bin/compose
 COMPOSE_EXEC        = $(COMPOSE) exec
 COMPOSE_EXEC_APP    = $(COMPOSE_EXEC) app-dev
 COMPOSE_RUN         = $(COMPOSE) run --rm
@@ -64,6 +65,19 @@ data/media:
 data/static:
 	@mkdir -p data/static
 
+# -- production volumes
+data/production/media:
+	@mkdir -p data/production/media
+
+data/production/certs:
+	@mkdir -p data/production/certs
+
+data/production/databases/backend:
+	@mkdir -p data/production/databases/backend
+
+data/production/databases/keycloak:
+	@mkdir -p data/production/databases/keycloak
+
 # -- Project
 
 create-env-files: ## Copy the dist env files to env files
@@ -87,6 +101,27 @@ bootstrap: \
 	mails-install \
 	mails-build
 .PHONY: bootstrap
+
+bootstrap-production: ## Prepare project to run in production mode using docker compose
+bootstrap-production: \
+	env.d/production \
+	data/production/media \
+	data/production/certs \
+	data/production/databases/backend \
+	data/production/databases/keycloak
+bootstrap-production:
+	@echo 'Environment files created in env.d/production'
+	@echo 'Edit them to set good value for your production environment'
+.PHONY: bootstrap-production
+
+run-production: ## Run compose project in production mode
+	@$(COMPOSE_PRODUCTION) up -d ingress
+.PHONY: run-production
+
+stop-production: ## Stop compose project in production mode
+	@$(COMPOSE_PRODUCTION) stop
+.PHONY: stop-production
+
 
 # -- Docker/compose
 build: cache ?= --no-cache
@@ -224,6 +259,8 @@ resetdb: ## flush database and create a superuser "admin"
 	@${MAKE} superuser
 .PHONY: resetdb
 
+# -- Environment variable files
+
 env.d/development/common:
 	cp -n env.d/development/common.dist env.d/development/common
 
@@ -232,6 +269,9 @@ env.d/development/postgresql:
 
 env.d/development/kc_postgresql:
 	cp -n env.d/development/kc_postgresql.dist env.d/development/kc_postgresql
+
+env.d/production:
+	cp -rnf env.d/production.dist env.d/production
 
 # -- Internationalization
 
