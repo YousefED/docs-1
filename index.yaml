@@ -3,6 +3,15 @@ entries:
   docs:
   - apiVersion: v2
     appVersion: latest
+    created: "2026-10-08T19:43:47.772440194Z"
+    digest: 2515ba692c8df54ebb6da1c71891e14301d4ec43de7dbcd45a2b4afb34ef134c
+    name: docs
+    type: application
+    urls:
+    - https://YousefED.github.io/docs-1/docs-6.0.0-alpha.2.tgz
+    version: 6.0.0-alpha.2
+  - apiVersion: v2
+    appVersion: latest
     created: "2025-02-04T20:48:18.85975991Z"
     digest: fca1bb954129ec90d4a5df674aed21674a37133f9671af9510d3655986347e86
     name: docs
@@ -37,4 +46,4 @@ entries:
     urls:
     - https://suitenumerique.github.io/docs/docs-0.0.1.tgz
     version: 0.0.1
-generated: "2025-02-04T20:48:18.857865112Z"
+generated: "2026-10-08T19:43:47.769903743Z"
